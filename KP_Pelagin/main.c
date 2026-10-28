@@ -29,6 +29,7 @@
 
 double compute_q(double x);
 int check_state(double q);
+double read_x(void);
 
 int main() {
     setlocale(LC_ALL, "RUS");
@@ -42,9 +43,7 @@ int main() {
     printf("Программа рассчитает нормированный показатель Q и состояние.\n");
     printf("==================================================\n\n");
 
-    double x;
-    printf("Введите концентрацию CO2 (X): ");
-    scanf("%lf", &x);
+    double x = read_x();
 
     double q_val = compute_q(x);
 
@@ -91,4 +90,12 @@ int check_state(double q) {
     else {
         return 0; 
     }
+}
+
+// Функция чтения входных данных
+double read_x(void) {
+    double x;
+    printf("Введите концентрацию CO2 (X): ");
+    scanf("%lf", &x);
+    return x;
 }
