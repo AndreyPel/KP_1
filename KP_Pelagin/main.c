@@ -3,26 +3,26 @@
 #include <locale.h>
 #include <math.h>
 
-// --- Константы для валидации входных данных ---
+// Вводные данные
 #define X_MIN 0.0
 #define X_MAX 20.0
 
-// --- Границы интервалов для кусочной функции ---
+// Границы интервалов
 #define X_BOUND_1 2.0
 #define X_BOUND_2 8.0
 
-// --- Параметры для контроля состояния ---
+// Параметры для контроля состояния
 #define Q0 45.0
 #define DQ_MAX 11.0
 
-// Ветка 1: 2 * (x - 2) + 10
+// 2 * (x - 2) + 10
 #define F1_MUL 2.0
 #define F1_ADD 10.0
 
-// Ветка 2: (x - 5)^2 + 45
+// (x - 5)^2 + 45
 #define F2_CENTER 5.0
 
-// Ветка 3: 3 * sqrt(x - 7) + 55
+// 3 * sqrt(x - 7) + 55
 #define F3_MUL 3.0
 #define F3_SHIFT 7.0
 #define F3_ADD 55.0
