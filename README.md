@@ -38,9 +38,6 @@ $$
 ## Блок-схема алгоритма
 ![Блок-схема преобразования X → Q → CONTROL → STATE](https://github.com/AndreyPel/KP_1/blob/master/СхемаКП2.png)
 
-## Блок-схема функции вычисления Q(X)
-![Блок-схема функции вычисления Q(X)](https://github.com/AndreyPel/KP_1/blob/master/СхемаКП.png)
-
 ## Ручные тесты
 
 ### Тест 1. Нижний диапазон
