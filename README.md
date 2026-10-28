@@ -36,7 +36,7 @@ $$
 8. Завершить программу.
 
 ## Блок-схема алгоритма
-![Блок-схема преобразования X → Q → CONTROL → STATE](https://github.com/AndreyPel/KP_1/blob/master/СхемаКП2.png)
+![Блок-схема преобразования X → Q → CONTROL → STATE](https://github.com/AndreyPel/KP_1/blob/master/Блок-схема%20преобразования%20X%20→%20Q%20→%20CONTROL%20→%20STATE.png)
 
 ## Ручные тесты
 
