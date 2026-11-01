@@ -15,21 +15,9 @@
 #define Q0 45.0
 #define DQ_MAX 11.0
 
-// 2 * (x - 2) + 10
-#define F1_MUL 2.0
-#define F1_ADD 10.0
-
-// (x - 5)^2 + 45
-#define F2_CENTER 5.0
-
-// 3 * sqrt(x - 7) + 55
-#define F3_MUL 3.0
-#define F3_SHIFT 7.0
-#define F3_ADD 55.0
-
 double compute_q(double x);
 int check_state(double q);
-double read_x(void);
+double read_x();
 
 int main() {
     setlocale(LC_ALL, "RUS");
@@ -69,13 +57,13 @@ int main() {
 // Функция расчёта нормированного показателя Q
 double compute_q(double x) {
     if (x < X_BOUND_1) {
-        return F1_MUL * (x - X_BOUND_1) + F1_ADD;
+        return 2.0 * (x - 2.0) + 10.0;
     }
     else if (x <= X_BOUND_2) {
-        return (x - F2_CENTER) * (x - F2_CENTER) + Q0;
+        return (x - 5.0) * (x - 5.0) + 45.0;
     }
     else {
-        return F3_MUL * sqrt(x - F3_SHIFT) + F3_ADD;
+        return 3.0 * sqrt(x - 7.0) + 55.0;
     }
 }
 
@@ -88,12 +76,12 @@ int check_state(double q) {
         return 1;
     }
     else {
-        return 0; 
+        return 0;
     }
 }
 
 // Функция чтения входных данных
-double read_x(void) {
+double read_x() {
     double x;
     printf("Введите концентрацию CO2 (X): ");
     scanf("%lf", &x);
