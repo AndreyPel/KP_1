@@ -1,60 +1,76 @@
-#define _CRT_SECURE_NO_DEPRECATE 
+#define _CRT_SECURE_NO_DEPRECATE
 #include <stdio.h>
 #include <locale.h>
 #include <math.h>
+#include <string.h>
 
-// Вводные данные
-#define X_MIN 0.0
-#define X_MAX 20.0
 
-// Границы интервалов
-#define X_BOUND_1 2.0
-#define X_BOUND_2 8.0
+#define X_MIN      0.0
+#define X_MAX      20.0
+#define X_BOUND_1  2.0
+#define X_BOUND_2  8.0
+#define Q0         45.0
+#define DQ_MAX     11.0
 
-// Параметры для контроля состояния
-#define Q0 45.0
-#define DQ_MAX 11.0
+#define MAX_LINE   256
+#define MAX_FILE   256
+#define DEFAULT_FILE "co2_data.txt"
 
 double compute_q(double x);
-int check_state(double q);
-double read_x();
+int    check_state(double x);
+int    check_delta(double q_prev, double q_cur);
+int    process_file(const char* file_name, int mode);
+void   change_settings(char* file_name, int* mode);
 
-int main() {
+int main(void) {
     setlocale(LC_ALL, "RUS");
 
+    char file_name[MAX_FILE] = DEFAULT_FILE;
+    int  mode = 1;   
+    int  choice;
+
     printf("==================================================\n");
-    printf("  Система мониторинга концентрации CO2\n");
+    printf("  Мониторинг реактора: концентрация CO2 (вариант 31)\n");
     printf("==================================================\n");
-    printf("Программа предназначена для мониторинга технологического\n");
-    printf("процесса в химическом реакторе.\n");
-    printf("Введите значение X в процентах (диапазон: %.0f..%.0f).\n", X_MIN, X_MAX);
-    printf("Программа рассчитает нормированный показатель Q и состояние.\n");
-    printf("==================================================\n\n");
+    printf("Диапазон X: %.0f..%.0f %%. Базовое Q0 = %.2f, допуск dQmax = %.2f.\n",
+        X_MIN, X_MAX, Q0, DQ_MAX);
+    printf("Контрольный пример: X = 2.00 %% -> ожидается Q = 54.00.\n");
+    printf("==================================================\n");
 
-    double x = read_x();
+    while (1) {
+        printf("\n==================================================\n");
+        printf("                   МЕНЮ ПРОГРАММЫ                 \n");
+        printf("==================================================\n");
+        printf("1 - Обработать файл измерений\n");
+        printf("2 - Изменить настройки (имя файла, режим вывода)\n");
+        printf("3 - Выход из программы\n");
+        printf("==================================================\n");
+        printf("Ваш выбор: ");
 
-    double q_val = compute_q(x);
+        if (scanf("%d", &choice) != 1) {
+            printf("\nОшибка ввода: необходимо ввести число (1, 2 или 3).\n");
+            continue;
+        }
 
-    printf("\n--- Результаты ---\n");
-    printf("X = %.4lf\n", x);
-    printf("Q(%.4lf) = %.4lf\n", x, q_val);
-
-    double lower_bound = Q0 - DQ_MAX;
-    double upper_bound = Q0 + DQ_MAX;
-    printf("Допустимый диапазон Q: [%.2lf; %.2lf]\n", lower_bound, upper_bound);
-
-    int status = check_state(q_val);
-    if (status == 1) {
-        printf("Состояние: Норма\n");
-    }
-    else {
-        printf("Состояние: Отклонение\n");
+        switch (choice) {
+        case 1:
+            process_file(file_name, mode);
+            break;
+        case 2:
+            change_settings(file_name, &mode);
+            break;
+        case 3:
+            printf("\nПрограмма завершена.\n");
+            return 0;
+        default:
+            printf("\nНеизвестный пункт меню, попробуйте снова.\n");
+            break;
+        }
     }
 
     return 0;
 }
 
-// Функция расчёта нормированного показателя Q
 double compute_q(double x) {
     if (x < X_BOUND_1) {
         return 2.0 * (x - 2.0) + 10.0;
@@ -67,23 +83,114 @@ double compute_q(double x) {
     }
 }
 
-// Функция проверки состояния
-int check_state(double q) {
-    double lower_bound = Q0 - DQ_MAX;
-    double upper_bound = Q0 + DQ_MAX;
-
-    if (q >= lower_bound && q <= upper_bound) {
-        return 1;
-    }
-    else {
-        return 0;
-    }
+int check_state(double x) {
+    return (x >= X_BOUND_1 && x <= X_BOUND_2) ? 1 : 0;
 }
 
-// Функция чтения входных данных
-double read_x() {
-    double x;
-    printf("Введите концентрацию CO2 (X): ");
-    scanf("%lf", &x);
-    return x;
+int check_delta(double q_prev, double q_cur) {
+    return (fabs(q_prev - q_cur) > DQ_MAX) ? 1 : 0;
+}
+
+int process_file(const char* file_name, int mode) {
+    FILE* f = fopen(file_name, "r");
+    if (!f) {
+        printf("\nОшибка: не удалось открыть файл \"%s\".\n", file_name);
+        printf("Проверьте, что файл существует и лежит в папке с программой.\n");
+        return -1;
+    }
+
+    char   line[MAX_LINE];
+    int    total = 0, errors = 0, deviations = 0, signals = 0;
+    int    have_prev = 0;
+    double q_prev = 0.0;
+
+    printf("\n--- Обработка файла \"%s\" ---\n", file_name);
+    printf(" Запись |     X      |     Q      | Состояние  | Контроль\n");
+    printf("--------+------------+------------+------------+---------------------------\n");
+
+    while (fgets(line, sizeof(line), f)) {
+        total++;
+
+        double x;
+        if (sscanf(line, "%lf", &x) != 1) {
+            printf(" %6d | некорректная запись, пропущена\n", total);
+            errors++;
+            continue;
+        }
+        if (x < X_MIN || x > X_MAX) {
+            printf(" %6d | %10.2lf - значение вне диапазона, пропущено\n", total, x);
+            errors++;
+            continue;
+        }
+
+        double q = compute_q(x);
+        int    state = check_state(x);
+        int    signal = have_prev ? check_delta(q_prev, q) : 0;
+
+        have_prev = 1;
+        q_prev = q;
+
+        if (!state) deviations++;
+        if (signal) signals++;
+
+        const char* state_text;
+        if (state == 1) {
+            state_text = "Норма";
+        }
+        else {
+            state_text = "Отклонение";
+        }
+
+        const char* control_text;
+        if (signal == 1) {
+            control_text = "СИГНАЛ: резкое изменение Q!";
+        }
+        else {
+            control_text = "OK";
+        }
+
+        if (mode == 1 || !state || signal) {
+            printf(" %6d | %10.4lf | %10.4lf | %-10s | %s\n",
+                total, x, q, state_text, control_text);
+        }
+    }
+
+    fclose(f);
+
+    if (total == 0) {
+        printf("\nФайл пуст: записи не найдены.\n");
+    }
+    else {
+        printf("\nКонец файла. Всего строк: %d, обработано: %d, "
+            "ошибок: %d, отклонений: %d, сигналов: %d.\n",
+            total, total - errors, errors, deviations, signals);
+    }
+    return total;
+}
+
+
+void change_settings(char* file_name, int* mode) {
+    char tmp[MAX_FILE];
+    int  m;
+
+    printf("\n--- Настройки ---\n");
+    printf("Текущий файл : %s\n", file_name);
+    printf("Текущий режим: %s\n", *mode == 1 ? "подробный" : "только отклонения");
+
+    printf("\nВведите новое имя файла (или 0, чтобы оставить без изменений): ");
+    if (scanf("%255s", tmp) == 1) {
+        if (strcmp(tmp, "0") != 0) {
+            strncpy(file_name, tmp, MAX_FILE - 1);
+            file_name[MAX_FILE - 1] = '\0';
+        }
+    }
+
+    printf("Введите режим вывода (1 - подробный, 2 - только отклонения): ");
+    if (scanf("%d", &m) == 1 && (m == 1 || m == 2)) {
+        *mode = m;
+    }
+    else {
+        printf("Некорректный ввод режима, оставлено прежнее значение.\n");
+    }
+    printf("Настройки успешно применены.\n");
 }
