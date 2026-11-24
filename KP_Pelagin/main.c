@@ -1,7 +1,7 @@
+#define _CRT_SECURE_NO_DEPRECATE 
 #include <stdio.h>
 #include <locale.h>
 #include <math.h>
-#include <string.h>
 
 #define X_MIN      0.0
 #define X_MAX      20.0
@@ -14,8 +14,11 @@
 #define MAX_FILE   256
 #define DEFAULT_FILE "co2_data.txt"
 
+/* Прототипы */
 double compute_q(double x);
-int    check_state(double x);
+int    check_state(double q);
+int    read_value(FILE* f, double* x);
+void   print_record(int num, double x, double q, int state, int signal);
 void   process_file(const char* file_name, int mode);
 void   change_settings(char* file_name, int* mode);
 
@@ -80,10 +83,28 @@ double compute_q(double x) {
     }
 }
 
-int check_state(double x) {
-    return (x >= X_BOUND_1 && x <= X_BOUND_2) ? 1 : 0;
+int check_state(double q) {
+    return (fabs(q - Q0) <= DQ_MAX) ? 1 : 0;
 }
 
+int read_value(FILE* f, double* x) {
+    char line[MAX_LINE];
+    if (fgets(line, sizeof(line), f) == NULL) {
+        return 0;
+    }
+    if (sscanf(line, "%lf", x) != 1) {
+        return -1;
+    }
+    return 1;
+}
+
+void print_record(int num, double x, double q, int state, int signal) {
+    const char* state_text = state ? "Норма" : "Отклонение";
+    const char* control_text = signal ? "СИГНАЛ: резкое изменение Q!" : "OK";
+
+    printf(" %6d | %10.4lf | %10.4lf | %-10s | %s\n",
+        num, x, q, state_text, control_text);
+}
 
 void process_file(const char* file_name, int mode) {
     FILE* f = fopen(file_name, "r");
@@ -93,7 +114,6 @@ void process_file(const char* file_name, int mode) {
         return;
     }
 
-    char   line[MAX_LINE];
     int    total = 0, errors = 0, deviations = 0, signals = 0;
     int    have_prev = 0;
     double q_prev = 0.0;
@@ -102,15 +122,17 @@ void process_file(const char* file_name, int mode) {
     printf(" Запись |     X      |     Q      | Состояние  | Контроль\n");
     printf("--------+------------+------------+------------+---------------------------\n");
 
-    while (fgets(line, sizeof(line), f)) {
+    double x;
+    int status;
+    while ((status = read_value(f, &x)) != 0) {
         total++;
 
-        double x;
-        if (sscanf(line, "%lf", &x) != 1) {
+        if (status == -1) {
             printf(" %6d | некорректная запись, пропущена\n", total);
             errors++;
             continue;
         }
+
         if (x < X_MIN || x > X_MAX) {
             printf(" %6d | %10.2lf - значение вне диапазона, пропущено\n", total, x);
             errors++;
@@ -118,7 +140,7 @@ void process_file(const char* file_name, int mode) {
         }
 
         double q = compute_q(x);
-        int    state = check_state(x);
+        int state = check_state(q);
 
         int signal = have_prev && (fabs(q_prev - q) > DQ_MAX) ? 1 : 0;
 
@@ -128,25 +150,8 @@ void process_file(const char* file_name, int mode) {
         if (!state) deviations++;
         if (signal) signals++;
 
-        const char* state_text;
-        if (state == 1) {
-            state_text = "Норма";
-        }
-        else {
-            state_text = "Отклонение";
-        }
-
-        const char* control_text;
-        if (signal == 1) {
-            control_text = "СИГНАЛ: резкое изменение Q!";
-        }
-        else {
-            control_text = "OK";
-        }
-
         if (mode == 1 || !state || signal) {
-            printf(" %6d | %10.4lf | %10.4lf | %-10s | %s\n",
-                total, x, q, state_text, control_text);
+            print_record(total, x, q, state, signal);
         }
     }
 
@@ -162,6 +167,19 @@ void process_file(const char* file_name, int mode) {
     }
 }
 
+static void copy_string(char* dst, const char* src, int max_len) {
+    int i = 0;
+    while (i < max_len - 1 && src[i] != '\0') {
+        dst[i] = src[i];
+        i++;
+    }
+    dst[i] = '\0';
+}
+
+static int equals_zero(const char* s) {
+    return (s[0] == '0' && s[1] == '\0');
+}
+
 void change_settings(char* file_name, int* mode) {
     char tmp[MAX_FILE];
     int  m;
@@ -172,9 +190,8 @@ void change_settings(char* file_name, int* mode) {
 
     printf("\nВведите новое имя файла (или 0, чтобы оставить без изменений): ");
     if (scanf("%255s", tmp) == 1) {
-        if (strcmp(tmp, "0") != 0) {
-            strncpy(file_name, tmp, MAX_FILE - 1);
-            file_name[MAX_FILE - 1] = '\0';
+        if (!equals_zero(tmp)) {
+            copy_string(file_name, tmp, MAX_FILE);
         }
     }
 
