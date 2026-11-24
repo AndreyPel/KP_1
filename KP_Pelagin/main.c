@@ -1,9 +1,7 @@
-#define _CRT_SECURE_NO_DEPRECATE
 #include <stdio.h>
 #include <locale.h>
 #include <math.h>
 #include <string.h>
-
 
 #define X_MIN      0.0
 #define X_MAX      20.0
@@ -18,16 +16,15 @@
 
 double compute_q(double x);
 int    check_state(double x);
-int    check_delta(double q_prev, double q_cur);
-int    process_file(const char* file_name, int mode);
+void   process_file(const char* file_name, int mode);
 void   change_settings(char* file_name, int* mode);
 
 int main(void) {
-    setlocale(LC_ALL, "RUS");
-
     char file_name[MAX_FILE] = DEFAULT_FILE;
-    int  mode = 1;   
+    int  mode = 1;
     int  choice;
+
+    setlocale(LC_ALL, "RUS");
 
     printf("==================================================\n");
     printf("  Мониторинг реактора: концентрация CO2 (вариант 31)\n");
@@ -87,16 +84,13 @@ int check_state(double x) {
     return (x >= X_BOUND_1 && x <= X_BOUND_2) ? 1 : 0;
 }
 
-int check_delta(double q_prev, double q_cur) {
-    return (fabs(q_prev - q_cur) > DQ_MAX) ? 1 : 0;
-}
 
-int process_file(const char* file_name, int mode) {
+void process_file(const char* file_name, int mode) {
     FILE* f = fopen(file_name, "r");
     if (!f) {
         printf("\nОшибка: не удалось открыть файл \"%s\".\n", file_name);
         printf("Проверьте, что файл существует и лежит в папке с программой.\n");
-        return -1;
+        return;
     }
 
     char   line[MAX_LINE];
@@ -125,7 +119,8 @@ int process_file(const char* file_name, int mode) {
 
         double q = compute_q(x);
         int    state = check_state(x);
-        int    signal = have_prev ? check_delta(q_prev, q) : 0;
+
+        int signal = have_prev && (fabs(q_prev - q) > DQ_MAX) ? 1 : 0;
 
         have_prev = 1;
         q_prev = q;
@@ -165,9 +160,7 @@ int process_file(const char* file_name, int mode) {
             "ошибок: %d, отклонений: %d, сигналов: %d.\n",
             total, total - errors, errors, deviations, signals);
     }
-    return total;
 }
-
 
 void change_settings(char* file_name, int* mode) {
     char tmp[MAX_FILE];
